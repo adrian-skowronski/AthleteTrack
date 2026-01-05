@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    container_name: laravel_app
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - .:/var/www/html
+      - ./docker/ssl:/etc/apache2/ssl:ro   
+    depends_on:
+      - db
+    command: >
+      sh -c "
+      php artisan storage:link || true &&
+      apache2-foreground
+      "
+
+  db:
+    image: mariadb:10.10
+    container_name: laravel_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: athletic_club
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: laravel_phpmyadmin
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    depends_on:
+      - db
+
+volumes:
+  db_data:

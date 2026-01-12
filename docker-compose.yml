@@ -10,9 +10,13 @@ services:
       - ./docker/ssl:/etc/apache2/ssl:ro   
     depends_on:
       - db
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
     command: >
       sh -c "
       php artisan storage:link || true &&
+      php artisan key:generate --ansi &&
       apache2-foreground
       "
 

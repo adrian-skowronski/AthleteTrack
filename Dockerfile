@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
 RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' \
     /etc/apache2/sites-available/000-default.conf
 
-# Kopiowanie własnej konfiguracji SSL (zostanie użyta montowana ścieżka)
+# Kopiowanie własnej konfiguracji SSL
 COPY docker/apache/ssl.conf /etc/apache2/sites-available/default-ssl.conf
 RUN a2ensite default-ssl
 
@@ -44,13 +44,16 @@ COPY . .
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Composer + frontend
+# Instalacja PHP/JS zależności
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 RUN npm install
 RUN npm run build
 
+# Włączenie OPcache
+RUN echo "opcache.enable=1\nopcache.enable_cli=1\nopcache.memory_consumption=256\nopcache.interned_strings_buffer=16\nopcache.max_accelerated_files=10000\nopcache.revalidate_freq=2\nopcache.validate_timestamps=1" > /usr/local/etc/php/conf.d/opcache.ini
+
 # Eksponowanie portów HTTP + HTTPS
 EXPOSE 80 443
 
-# Uruchomienie Apache w pierwszym planie
-CMD ["apache2-foreground"]
+# Uruchomienie Apache + automatyczne storage link i cache Laravel
+CMD sh -c "php artisan storage:link || true && php artisan config:cache && php artisan route:cache && apache2-foreground"

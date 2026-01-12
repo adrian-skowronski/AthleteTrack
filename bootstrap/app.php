@@ -14,7 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // Wyłączenie CSRF dla wybranych endpointów
+        $middleware->validateCsrfTokens(except: [
+            'login',        // logowanie
+            'admin/*',      // wszystkie endpointy admin
+            // 'api/*',      // jeśli masz własne API, odkomentuj
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
 

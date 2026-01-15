@@ -54,7 +54,7 @@
                                 <td>{{ $event->age_to }}</td>
                                 <td class="col-date">{{ \Carbon\Carbon::parse($event->date)->format('d-m-Y') }}</td>
                                 <td class="col-hour">{{ \Carbon\Carbon::parse($event->start_hour)->format('H:i') }}</td>
-                                <td>{{ $event->max_participants }}</td>
+                                <td class="text-end">{{ $event->max_participants }}</td>
                             </tr>
                         @empty
                             <tr>

@@ -1,6 +1,8 @@
 <?php
 protected $routeMiddleware = [
     'can:admin' => \App\Http\Middleware\EnsureAdmin::class,
+        'active.user' => \App\Http\Middleware\CheckActiveUser::class,
+
 ];
 protected $routeMiddleware = [
 

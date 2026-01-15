@@ -16,49 +16,38 @@ class UserController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-{
-    $filter = $request->get('filter', 'all');
+    {
+        $filter = $request->get('filter', 'all');
 
-    $query = User::query();
+        $query = User::query();
 
-    if ($filter === 'active') {
-        $query->where('is_active', 1);
-    } elseif ($filter === 'archived') {
-        $query->where('is_active', 0);
+        if ($filter === 'active') {
+            $query->where('is_active', 1);
+        } elseif ($filter === 'archived') {
+            $query->where('is_active', 0);
+        }
+
+        $users = $query->paginate(10);
+
+        $pendingUsers = User::where('approved', 0)->paginate(10);
+
+        return view('admin.users.index', compact('users', 'pendingUsers', 'filter'));
     }
 
-    $users = $query->paginate(10);
-
-    $pendingUsers = User::where('approved', 0)->paginate(10);
-
-    return view('admin.users.index', compact('users', 'pendingUsers', 'filter'));
-}
-
-
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         $roles = Role::all();
         $categories = Category::all();
-        $sports = Sport::all();
+    $sports = Sport::where('is_active', 1)->get(); // tylko aktywne
         return view('users.create', compact('roles', 'categories', 'sports'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-        'name' => ['required', 'string', 'regex:/^[A-ZĄĆĘŁŃÓŚŻŹ][a-ząćęłńóśżź]{1,}(?:\s[A-ZĄĆĘŁŃÓŚŻŹ][a-ząćęłńóśżź]{1,})?$/u', 'max:80'],
-'surname' => [
-    'required',
-    'string',
-    'regex:/^[A-Za-zĄĆĘŁŃÓŚŻŹąćęłńóśżź][a-ząćęłńóśżź]{1,}$/u',
-    'max:80'
-],            'email' => 'required|email|unique:users|max:120',
+            'name' => ['required', 'string', 'regex:/^[A-ZĄĆĘŁŃÓŚŻŹ][a-ząćęłńóśżź]{1,}(?:\s[A-ZĄĆĘŁŃÓŚŻŹ][a-ząćęłńóśżź]{1,})?$/u', 'max:80'],
+            'surname' => ['required', 'string', 'regex:/^[A-Za-zĄĆĘŁŃÓŚŻŹąćęłńóśżź][a-ząćęłńóśżź]{1,}$/u', 'max:80'],
+            'email' => 'required|email|unique:users|max:120',
             'password' => 'required|string|min:8|max:100',
             'birthdate' => 'required|date|after_or_equal:1920-01-01',
             'points' => 'nullable|integer',
@@ -76,28 +65,28 @@ class UserController extends Controller
         }
 
         $validatedData['password'] = bcrypt($request->password);
-
+if ($request->sport_id) {
+    $sport = Sport::find($request->sport_id);
+    if (!$sport || !$sport->is_active) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['sport_id' => 'Wybrana dyscyplina jest zarchiwizowana i nie może zostać przypisana.']);
+    }
+}
         $user = User::create($validatedData);
 
         return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie dodany.');
     }
 
-   
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit($user_id)
     {
         $user = User::findOrFail($user_id);
         $roles = Role::all();
         $categories = Category::all();
-        $sports = Sport::all();
+    $sports = Sport::where('is_active', 1)->get(); // tylko aktywne
         return view('users.edit', compact('user', 'roles', 'categories', 'sports'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, $user_id)
     {
         $user = User::findOrFail($user_id);
@@ -117,12 +106,10 @@ class UserController extends Controller
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ]);
 
-        
         if ($request->filled('password')) {
             $validatedData['password'] = bcrypt($request->password);
         }
 
-      
         if ($request->hasFile('photo')) {
             if ($user->photo) {
                 Storage::disk('public')->delete($user->photo);
@@ -130,17 +117,24 @@ class UserController extends Controller
             $photoPath = $request->file('photo')->store('photos', 'public');
             $validatedData['photo'] = $photoPath;
         }
-if (isset($validatedData['points'])) {
-    $user->updateCategoryByPoints();
+
+        if (isset($validatedData['points'])) {
+            $user->updateCategoryByPoints();
+        }
+        if ($request->sport_id) {
+    $sport = Sport::find($request->sport_id);
+    if (!$sport || !$sport->is_active) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['sport_id' => 'Wybrana dyscyplina jest zarchiwizowana i nie może zostać przypisana.']);
+    }
 }
+
         $user->update($validatedData);
 
         return redirect()->route('admin.users.index')->with('success', 'Dane użytkownika zostały pomyślnie zaktualizowane.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($user_id)
     {
         $user = User::findOrFail($user_id);
@@ -148,23 +142,41 @@ if (isset($validatedData['points'])) {
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
         }
- if ($user->role_id === 1) {
-        return redirect()->back()->with('error', 'Nie można usunąć użytkownika o roli Admin.');
-    }
+
+        if ($user->role_id === 1) {
+            return redirect()->back()->with('error', 'Nie można usunąć użytkownika o roli Admin.');
+        }
+
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie usunięty.');
     }
+
     public function deactivate(User $user)
-{
-    $user->update(['is_active' => false]);
-    return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie zarchiwizowany.');
-}
+    {
+        
+    // Nie pozwalaj archiwizować Adminów
+    if ($user->role_id == 1) {
+        return redirect()->route('admin.users.index')
+                         ->with('error', 'Nie można zarchiwizować użytkownika o roli Admin.');
+    }
+        $futureTrainingsCount = $user->trainings()
+            ->where('date', '>=', now())
+            ->count();
 
-public function activate(User $user)
-{
-    $user->update(['is_active' => true]);
-    return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie przywrócony.');
-}
+        if ($futureTrainingsCount > 0) {
+            session()->flash('warning', 'Uwaga: użytkownik ma zapisane przyszłe treningi.');
+        }
 
+        $user->update(['is_active' => false]);
+
+        return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie zarchiwizowany.');
+    }
+
+    public function activate(User $user)
+    {
+        $user->update(['is_active' => true]);
+
+        return redirect()->route('admin.users.index')->with('success', 'Użytkownik został pomyślnie przywrócony.');
+    }
 }

@@ -9,7 +9,7 @@ return [
     'add'             => 'Dodaj',
     'admin'           => 'Administrator',
     'agree'           => 'Zgadzam się',
-    'archive'         => 'Archiwizuj',
+    'archive'         => 'Zarchiwizuj',
     'assign'          => 'Przydziel',
     'associate'       => 'Współpracownik',
     'attach'          => 'Dołącz',

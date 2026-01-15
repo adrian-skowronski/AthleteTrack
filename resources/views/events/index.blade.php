@@ -53,8 +53,8 @@
 <td class="text-nowrap">
     {{ \Carbon\Carbon::parse($event->date)->format('d-m-Y') }}
 </td><td>{{ \Carbon\Carbon::parse($event->start_hour)->format('H:i') }}</td>
-                            <td>{{ $event->max_participants }}</td>
-                            <td>{{ $event->users_count }}</td>
+                            <td class="text-end">{{ $event->max_participants }}</td>
+                            <td class="text-end">{{ $event->users_count }}</td>
                             <td>
                                 <a href="{{ route('admin.event-user.show', $event->event_id) }}" class="btn btn-primary">
                                     Lista

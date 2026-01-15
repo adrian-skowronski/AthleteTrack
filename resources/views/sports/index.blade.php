@@ -28,7 +28,7 @@
                     <select name="filter" class="form-select" onchange="this.form.submit()">
                         <option value="all" {{ $filter === 'all' ? 'selected' : '' }}>Wszystkie</option>
                         <option value="active" {{ $filter === 'active' ? 'selected' : '' }}>Aktywne</option>
-                        <option value="inactive" {{ $filter === 'inactive' ? 'selected' : '' }}>Archiwizowane</option>
+                        <option value="inactive" {{ $filter === 'inactive' ? 'selected' : '' }}>Zarchiwizowane</option>
                     </select>
                 </form>
             </div>
@@ -60,7 +60,7 @@
                                 @if($sport->is_active)
                                     <span class="text-success fw-bold">Aktywna</span>
                                 @else
-                                    <span class="text-danger fw-bold">Archiwizowana</span>
+                                    <span class="text-warning fw-bold">Zarchiwizowana</span>
                                 @endif
                             </td>
 
@@ -69,7 +69,7 @@
                                 @if($sport->is_active)
                                     <form method="POST" action="{{ route('admin.sports.deactivate', $sport->sport_id) }}">
                                         @csrf
-                                        <button class="btn btn-warning">Archiwizuj</button>
+                                        <button class="btn btn-warning">Zarchiwizuj</button>
                                     </form>
                                 @else
                                     <form method="POST" action="{{ route('admin.sports.activate', $sport->sport_id) }}">

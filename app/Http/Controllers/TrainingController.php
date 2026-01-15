@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\Event;
+use App\Models\Sport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -18,37 +19,55 @@ class TrainingController extends Controller
     }
 
     public function view(Request $request)
-{
-    $query = Training::with('trainer.sport')
-        ->orderBy('date', 'desc');
+    {
+        $query = Training::with('trainer.sport')
+            ->orderBy('date', 'desc');
 
-    if (
-        Auth::check() &&
-        Auth::user()->role_id == 3 &&
-        $request->get('filter') === 'my'
-    ) {
-        $sportId = Auth::user()->sport_id;
+        if (
+            Auth::check() &&
+            Auth::user()->role_id == 3 &&
+            $request->get('filter') === 'my'
+        ) {
+            $sportId = Auth::user()->sport_id;
 
-        $query->whereHas('trainer', function ($q) use ($sportId) {
-            $q->where('sport_id', $sportId);
-        });
+            $query->whereHas('trainer', function ($q) use ($sportId) {
+                $q->where('sport_id', $sportId);
+            });
+        }
+
+        $trainings = $query->paginate(10)->withQueryString();
+
+        return view('trainings.view', compact('trainings'));
     }
 
-    $trainings = $query->paginate(10)->withQueryString();
+    // ---------------------------
+    // TWORZENIE TRENINGU
+    // ---------------------------
+    public function create()
+    {
+        if (Auth::user()->role_id == 2) { // Trener
+            $trainer = Auth::user();
+            $sport = $trainer->sport;
 
-    return view('trainings.view', compact('trainings'));
-}
+            if (!$sport || !$sport->is_active) {
+                return redirect()->route('trainer.trainings')
+                    ->withErrors(['sport' => 'Nie możesz dodać treningu – Twoja dyscyplina jest zarchiwizowana.']);
+            }
 
+            return view('trainings.create', compact('trainer'));
+        }
 
-   public function create()
-{
-    $trainers = User::with('sport')
-        ->where('role_id', 2)
-        ->where('is_active', true)
-        ->get();
+        // Admin – lista tylko aktywnych trenerów z aktywnymi dyscyplinami
+        $trainers = User::with('sport')
+            ->where('role_id', 2)
+            ->where('is_active', true)
+            ->whereHas('sport', function ($q) {
+                $q->where('is_active', true);
+            })
+            ->get();
 
-    return view('trainings.create', compact('trainers'));
-}
+        return view('trainings.create', compact('trainers'));
+    }
 
     public function store(Request $request)
     {
@@ -61,31 +80,58 @@ class TrainingController extends Controller
             'max_points' => 'nullable|integer|min:0|max:200',
         ]);
 
+        // Pobieramy trenera
+        $trainer = User::findOrFail($validatedData['trainer_id']);
+
+        // Sprawdzenie aktywności dyscypliny
+        if (!$trainer->sport || !$trainer->sport->is_active) {
+            return redirect()->back()
+                ->withErrors(['trainer_id' => 'Nie możesz dodać treningu – dyscyplina trenera jest zarchiwizowana.'])
+                ->withInput();
+        }
+
+        // Sprawdzenie konfliktów
         if ($this->checkDateConflict($validatedData['date'])) {
             return redirect()->back()->withErrors(['date' => 'W tym dniu jest już zaplanowane wydarzenie.'])->withInput();
         }
 
-        if ($this->hasTimeConflict($validatedData['trainer_id'], $validatedData['date'], $validatedData['start_time'], $validatedData['end_time'])) {
-    return redirect()->back()->withErrors(['start_time' => 'Ten trener ma już trening w tym czasie.'])->withInput();
-}
-
+        if ($this->hasTimeConflict(
+            $validatedData['trainer_id'],
+            $validatedData['date'],
+            $validatedData['start_time'],
+            $validatedData['end_time']
+        )) {
+            return redirect()->back()->withErrors(['start_time' => 'Ten trener ma już trening w tym czasie.'])->withInput();
+        }
 
         Training::create($validatedData);
         return redirect()->route('admin.trainings.index')->with('success', 'Trening został dodany pomyślnie.');
     }
 
-  
-public function edit($training_id)
-{
-    $training = Training::findOrFail($training_id);
+    public function edit($training_id)
+    {
+        $training = Training::findOrFail($training_id);
 
-    $trainers = User::with('sport')
-        ->where('role_id', 2)
-        ->where('is_active', true)
-        ->get();
+        if (Auth::user()->role_id == 2) { // Trener
+            if (!$training->trainer->sport || !$training->trainer->sport->is_active) {
+                return redirect()->route('trainer.trainings')
+                    ->withErrors(['sport' => 'Nie możesz edytować treningu – dyscyplina jest zarchiwizowana.']);
+            }
 
-    return view('trainings.edit', compact('training', 'trainers'));
-}
+            return view('trainings.edit', compact('training'));
+        }
+
+        // Admin – lista tylko aktywnych trenerów z aktywnymi dyscyplinami
+        $trainers = User::with('sport')
+            ->where('role_id', 2)
+            ->where('is_active', true)
+            ->whereHas('sport', function ($q) {
+                $q->where('is_active', true);
+            })
+            ->get();
+
+        return view('trainings.edit', compact('training', 'trainers'));
+    }
 
     public function update(Request $request, $training_id)
     {
@@ -100,18 +146,28 @@ public function edit($training_id)
 
         $training = Training::findOrFail($training_id);
 
-       if ($this->hasTimeConflict(
-        $validatedData['trainer_id'],
-        $validatedData['date'],
-        $validatedData['start_time'],
-        $validatedData['end_time'],
-        $training->training_id
-    )) {
-    return redirect()->back()->withErrors(['start_time' => 'Ten trener ma już trening w tym czasie.'])->withInput();
-}
+        $trainer = User::findOrFail($validatedData['trainer_id']);
 
+        if (!$trainer->sport || !$trainer->sport->is_active) {
+            return redirect()->back()
+                ->withErrors(['trainer_id' => 'Nie możesz zaktualizować treningu – dyscyplina trenera jest zarchiwizowana.'])
+                ->withInput();
+        }
+
+        if ($this->hasTimeConflict(
+            $validatedData['trainer_id'],
+            $validatedData['date'],
+            $validatedData['start_time'],
+            $validatedData['end_time'],
+            $training->training_id
+        )) {
+            return redirect()->back()
+                ->withErrors(['start_time' => 'Ten trener ma już trening w tym czasie.'])
+                ->withInput();
+        }
 
         $training->update($validatedData);
+
         return redirect()->route('admin.trainings.index')->with('success', 'Trening został zaktualizowany pomyślnie.');
     }
 
@@ -122,6 +178,9 @@ public function edit($training_id)
         return redirect()->route('admin.trainings.index')->with('success', 'Trening został usunięty pomyślnie.');
     }
 
+    // ---------------------------
+    // ZAPIS SPORTOWCA
+    // ---------------------------
     public function signUp($training_id)
     {
         $user = Auth::user();
@@ -142,8 +201,8 @@ public function edit($training_id)
     private function canSignUpForTraining($user, $training)
     {
         if (!$user->is_active) {
-    return false;
-}
+            return false;
+        }
 
         $now = Carbon::now();
         $trainingStart = Carbon::parse($training->date)->startOfDay();
@@ -157,39 +216,37 @@ public function edit($training_id)
     }
 
     private function hasTimeConflict($trainer_id, $date, $start_time, $end_time, $excludeTrainingId = null)
-{
-    $query = Training::where('trainer_id', $trainer_id)
-                     ->where('date', $date);
+    {
+        $query = Training::where('trainer_id', $trainer_id)
+                         ->where('date', $date);
 
-    if ($excludeTrainingId) {
-        $query->where('training_id', '!=', $excludeTrainingId);
-    }
-
-    $trainings = $query->get();
-
-    foreach ($trainings as $training) {
-        if (
-            ($start_time >= $training->start_time && $start_time < $training->end_time) ||
-            ($end_time > $training->start_time && $end_time <= $training->end_time) ||
-            ($start_time <= $training->start_time && $end_time >= $training->end_time)
-        ) {
-            return true; // konflikt czasowy
+        if ($excludeTrainingId) {
+            $query->where('training_id', '!=', $excludeTrainingId);
         }
+
+        $trainings = $query->get();
+
+        foreach ($trainings as $training) {
+            if (
+                ($start_time >= $training->start_time && $start_time < $training->end_time) ||
+                ($end_time > $training->start_time && $end_time <= $training->end_time) ||
+                ($start_time <= $training->start_time && $end_time >= $training->end_time)
+            ) {
+                return true; // konflikt czasowy
+            }
+        }
+
+        return false; // brak konfliktu
     }
 
-    return false; // brak konfliktu
-}
-public function participants($training_id)
-{
-    $training = Training::findOrFail($training_id);
+    public function participants($training_id)
+    {
+        $training = Training::findOrFail($training_id);
 
-    // Pobieramy uczestników razem z danymi z tabeli training_user
-    $participants = \App\Models\TrainingUser::with('user')
-                        ->where('training_id', $training_id)
-                        ->paginate(20);
+        $participants = \App\Models\TrainingUser::with('user')
+            ->where('training_id', $training_id)
+            ->paginate(20);
 
-    return view('trainings.participants', compact('training', 'participants'));
-}
-
-
+        return view('trainings.participants', compact('training', 'participants'));
+    }
 }

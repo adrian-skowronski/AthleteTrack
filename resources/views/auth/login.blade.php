@@ -14,11 +14,12 @@
         @csrf
 
         <div class="mb-3">
+             @error('email')
+                <div class="text-danger mt-1 mb-1">{{ $message }}</div>
+            @enderror
             <label for="email" class="form-label">Adres email</label>
             <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus class="form-control">
-            @error('email')
-                <div class="text-danger mt-1">{{ $message }}</div>
-            @enderror
+           
         </div>
 
         <div class="mb-3">

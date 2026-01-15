@@ -35,7 +35,7 @@
                 <select name="filter" id="filter" class="form-select" onchange="this.form.submit()">
                     <option value="all" {{ request('filter') === 'all' ? 'selected' : '' }}>Wszyscy</option>
                     <option value="active" {{ request('filter') === 'active' ? 'selected' : '' }}>Aktywni</option>
-                    <option value="inactive" {{ request('filter') === 'inactive' ? 'selected' : '' }}>Archiwizowani</option>
+                    <option value="inactive" {{ request('filter') === 'inactive' ? 'selected' : '' }}>Zarchiwizowani</option>
                 </select>
             </form>
         </div>
@@ -75,7 +75,7 @@
                         <td>{{ $user->surname }}</td>
                         <td>{{ $user->email }}</td>
                         <td>{{ $user->birthdate }}</td>
-                        <td>{{ $user->points }}</td>
+                        <td class="text-end">{{ $user->points }}</td>
                         <td>{{ $user->phone }}</td>
                         <td>{{ $user->role ? $user->role->name : 'Brak' }}</td>
                         <td>{{ $user->category ? $user->category->name : 'Brak' }}</td>
@@ -86,7 +86,7 @@
                             @if($user->is_active)
                                 <span class="text-success fw-bold">Aktywny</span>
                             @else
-                                <span class="text-danger fw-bold">Archiwizowany</span>
+                                <span class="text-danger fw-bold">Zarchiwizowany</span>
                             @endif
                         </td>
 

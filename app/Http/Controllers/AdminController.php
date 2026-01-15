@@ -41,7 +41,7 @@ class AdminController extends Controller
     public function approve($user_id)
     {
         $user = User::findOrFail($user_id);
-        $sports = Sport::all();
+    $sports = Sport::where('is_active', true)->get();
         $roles = Role::all();
         $categories = Category::all();
         return view('admin.approve', compact('user', 'sports', 'roles', 'categories'));
@@ -68,7 +68,14 @@ class AdminController extends Controller
     // Admin – nie wymagamy punktów ani dyscypliny
 
     $validated = $request->validate($rules);
-
+if (($roleName === 'sportowiec' || $roleName === 'trener') && $request->sport_id) {
+        $sport = Sport::find($request->sport_id);
+        if (!$sport || !$sport->is_active) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['sport_id' => 'Wybrana dyscyplina jest zarchiwizowana i nie może zostać przypisana.']);
+        }
+    }
     $user->role_id = $request->role_id;
 
     if ($roleName === 'sportowiec') {
@@ -129,7 +136,7 @@ public function edit($user_id)
 {
     $user = User::findOrFail($user_id);
     $roles = Role::all();
-    $sports = Sport::all();
+    $sports = Sport::where('is_active', true)->get();
     return view('users.edit', compact('user', 'roles', 'sports'));
 }
 
@@ -146,7 +153,14 @@ public function update(Request $request, $user_id)
         'phone' => 'required|regex:/^\d{9,11}$/',
         'approved' => 'required|boolean',
     ]);
-
+if ($request->sport_id) {
+        $sport = Sport::find($request->sport_id);
+        if (!$sport || !$sport->is_active) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['sport_id' => 'Wybrana dyscyplina jest zarchiwizowana i nie może zostać przypisana.']);
+        }
+    }
     $user->update($request->only('name','surname','email','role_id','sport_id','phone','approved'));
 
     return redirect()->route('admin.index')->with('success', 'Użytkownik został zaktualizowany.');

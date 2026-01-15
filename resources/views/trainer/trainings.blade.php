@@ -22,14 +22,20 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($trainings as $training)
+            @forelse($trainings as $training)
             <tr>
                 <td>{{ $training->description }}</td>
                 <td>{{ \Carbon\Carbon::parse($training->date)->format('d-m-Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($training->start_time)->format('H:i') }}</td>
                 <td>{{ \Carbon\Carbon::parse($training->end_time)->format('H:i') }}</td>
-                <td>{{ $training->trainer->sport->name }}</td>
-                <td>{{ $training->max_points }}</td>
+                <td>
+                    @if($training->trainer->sport && $training->trainer->sport->is_active)
+                        {{ $training->trainer->sport->name }}
+                    @else
+                        <span class="text-muted">Dyscyplina zarchiwizowana</span>
+                    @endif
+                </td>
+                <td class="text-end">{{ $training->max_points }}</td>
                 <td>
                     <a href="{{ route('trainer.participants', $training->training_id) }}"
                        class="btn btn-primary btn-sm">
@@ -54,15 +60,25 @@
                     </form>
                 </td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="9" class="text-center text-muted">Brak treningów do wyświetlenia</td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
 
     {{ $trainings->links('pagination::bootstrap-4') }}
 
-    <a href="{{ route('trainer.createTraining') }}" class="btn btn-primary mt-3 mb-3">
-        Dodaj trening
-    </a>
+    @if(Auth::user()->sport && Auth::user()->sport->is_active)
+        <a href="{{ route('trainer.createTraining') }}" class="btn btn-primary mt-3 mb-3">
+            Dodaj trening
+        </a>
+    @else
+        <div class="alert alert-info mt-3 mb-3">
+            Nie możesz dodać nowego treningu – Twoja dyscyplina jest zarchiwizowana.
+        </div>
+    @endif
 </div>
 
 @include('shared.footer')

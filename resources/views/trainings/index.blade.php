@@ -41,7 +41,7 @@
 <td>{{ \Carbon\Carbon::parse($training->end_time)->format('H:i') }}</td>
                             <td>{{ $training->trainer->sport->name }}</td>
                             <td>{{ $training->trainer->name }} {{ $training->trainer->surname }}</a></td>                           
-                            <td>{{ $training->max_points }}</td>
+                           <td class="text-end">{{ $training->max_points }}</td>
                           <td>
     <a href="{{ route('admin.trainings.participants', $training->training_id) }}" class="btn btn-info">
         Lista

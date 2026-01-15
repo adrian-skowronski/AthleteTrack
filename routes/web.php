@@ -33,7 +33,7 @@ Route::view('/error/data', 'errors.data')->name('error.data');
 | AUTH ROUTES
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', function () {

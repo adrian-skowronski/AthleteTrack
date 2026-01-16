@@ -7,18 +7,13 @@ services:
       - "8443:443"
     volumes:
       - .:/var/www/html
-      - ./docker/ssl:/etc/apache2/ssl:ro   
+      - ./docker/ssl:/etc/apache2/ssl:ro
     depends_on:
       - db
     environment:
       APP_ENV: local
-      APP_DEBUG: 'true'
-    command: >
-      sh -c "
-      php artisan storage:link || true &&
-      php artisan key:generate --ansi &&
-      apache2-foreground
-      "
+      APP_DEBUG: "true"
+    command: apache2-foreground
 
   db:
     image: mariadb:10.10

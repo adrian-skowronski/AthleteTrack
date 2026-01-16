@@ -44,11 +44,6 @@ COPY . .
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Instalacja PHP/JS zależności
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
-RUN npm install
-RUN npm run build
-
 # Włączenie OPcache
 RUN echo "opcache.enable=1\nopcache.enable_cli=1\nopcache.memory_consumption=256\nopcache.interned_strings_buffer=16\nopcache.max_accelerated_files=10000\nopcache.revalidate_freq=2\nopcache.validate_timestamps=1" > /usr/local/etc/php/conf.d/opcache.ini
 
@@ -56,4 +51,4 @@ RUN echo "opcache.enable=1\nopcache.enable_cli=1\nopcache.memory_consumption=256
 EXPOSE 80 443
 
 # Uruchomienie Apache + automatyczne storage link i cache Laravel
-CMD sh -c "php artisan storage:link || true && php artisan config:cache && php artisan route:cache && apache2-foreground"
+CMD ["apache2-foreground"]
